@@ -141,6 +141,14 @@
             </div>
           </div>
 
+          <div>
+            <label for="people">Количество человек<span class="req">*</span></label>
+            <div class="field">
+              <input id="people" name="people" type="number" min="1" max="10" step="1" placeholder="1" required />
+            </div>
+            <div class="hint">От 1 до 10.</div>
+          </div>
+
           <div class="span2">
             <label for="addr">Желаемая точка старта (адрес)<span class="req">*</span></label>
 
@@ -271,6 +279,7 @@
         tg: document.getElementById("tg").value.trim(),
         day: document.getElementById("day").value,
         earliest_time: document.getElementById("time").value,
+        people: parseInt(document.getElementById("people").value, 10),
         start_point: { address, lat, lon }
       };
     }
@@ -284,6 +293,7 @@
       if(!p.phone) return show("Заполни телефон.", false);
       if(!p.day) return show("Выбери дату: 30 или 31.", false);
       if(!p.earliest_time) return show("Выбери время.", false);
+      if(!Number.isInteger(p.people) || p.people < 1 || p.people > 10) return show("Укажи количество человек (1-10).", false);
       if(!p.start_point.address) return show("Введи адрес точки старта.", false);
       if(!Number.isFinite(p.start_point.lat) || !Number.isFinite(p.start_point.lon)){
         return show('Поставь точку на карте (маркер) или нажми "Найти".', false);

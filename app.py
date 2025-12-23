@@ -117,6 +117,7 @@ class RideRequestIn(BaseModel):
     tg: Optional[str] = Field(default="", max_length=64)
     day: str = Field(..., pattern="^(30|31)$")
     earliest_time: str = Field(..., pattern=r"^\d{2}:\d{2}$")
+    people: int = Field(..., ge=1, le=10)
     start_point: StartPoint
 
     @field_validator("phone")
