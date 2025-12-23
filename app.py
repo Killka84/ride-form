@@ -1,9 +1,14 @@
 import os
+import asyncio
+import json
+import logging
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
@@ -11,9 +16,15 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 MONGO_DB = os.getenv("MONGO_DB", "ride")
 MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "requests")
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+TELEGRAM_THREAD_ID = os.getenv("TELEGRAM_THREAD_ID", "").strip()
 
 app = FastAPI(title="Ride Form API")
 
@@ -21,6 +32,75 @@ app = FastAPI(title="Ride Form API")
 client = AsyncIOMotorClient(MONGO_URI)
 db = client[MONGO_DB]
 col = db[MONGO_COLLECTION]
+
+
+def _telegram_enabled() -> bool:
+    return bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)
+
+
+def _telegram_send_message_sync(text: str) -> None:
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+
+    payload: dict[str, object] = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text,
+        "disable_web_page_preview": True,
+    }
+    if TELEGRAM_THREAD_ID:
+        try:
+            payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
+        except ValueError:
+            payload["message_thread_id"] = TELEGRAM_THREAD_ID
+
+    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = resp.read()
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Telegram API error HTTP {e.code}: {detail}") from e
+
+    try:
+        decoded = json.loads(body.decode("utf-8"))
+    except Exception:
+        return
+    if isinstance(decoded, dict) and decoded.get("ok") is False:
+        raise RuntimeError(f"Telegram API error: {decoded}")
+
+
+async def notify_telegram_new_request(doc: dict, request_id: str) -> None:
+    if not _telegram_enabled():
+        return
+
+    sp = doc.get("start_point") or {}
+    lat = sp.get("lat")
+    lon = sp.get("lon")
+
+    map_url = ""
+    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+        map_url = f"https://www.google.com/maps?q={lat},{lon}"
+
+    tg = (doc.get("tg") or "").strip()
+    if tg and not tg.startswith("@"):
+        tg = "@" + tg
+
+    lines = [
+        "Новая заявка",
+        f"id: {request_id}",
+        f"phone: {doc.get('phone', '')}",
+        f"tg: {tg or '-'}",
+        f"day: {doc.get('day', '')}",
+        f"time: {doc.get('earliest_time', '')}",
+        f"start: {sp.get('address', '')}",
+    ]
+    if map_url:
+        lines.append(f"map: {map_url}")
+
+    try:
+        await asyncio.to_thread(_telegram_send_message_sync, "\n".join(lines))
+    except Exception:
+        logger.exception("Telegram notification failed")
 
 
 # --- Models ---
@@ -73,7 +153,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 @app.post("/api/ride-request")
-async def create_request(payload: RideRequestIn):
+async def create_request(payload: RideRequestIn, background_tasks: BackgroundTasks):
     doc = payload.model_dump()
     doc["created_at"] = datetime.now(timezone.utc).isoformat()
 
@@ -88,7 +168,12 @@ async def create_request(payload: RideRequestIn):
         raise HTTPException(status_code=422, detail="Invalid phone")
 
     res = await col.insert_one(doc)
-    return {"ok": True, "id": str(res.inserted_id)}
+    request_id = str(res.inserted_id)
+
+    if _telegram_enabled():
+        background_tasks.add_task(notify_telegram_new_request, doc, request_id)
+
+    return {"ok": True, "id": request_id}
 
 
 @app.get("/api/health")

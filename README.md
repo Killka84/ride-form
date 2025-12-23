@@ -107,6 +107,26 @@ python run.py
 
 Для локальной разработки удобно сделать сертификат через `mkcert` (или любой другой способ). Для продакшна обычно ставят TLS на Nginx/Caddy и проксируют на Uvicorn по HTTP.
 
+## Telegram уведомления
+После каждой заявки сервер может отправлять сообщение в Telegram чат/группу.
+
+1) Создай бота через `@BotFather` и получи токен.
+2) Открой личный чат с ботом и нажми Start (или добавь бота в группу и отправь команду, чтобы бот увидел сообщение).
+3) Узнай `chat_id` через `getUpdates`:
+
+PowerShell пример:
+```powershell
+$token = "123456:ABC"
+(Invoke-RestMethod "https://api.telegram.org/bot$token/getUpdates").result[-1].message.chat.id
+```
+
+4) Пропиши в `.env`:
+```env
+TELEGRAM_BOT_TOKEN=123456:ABC
+TELEGRAM_CHAT_ID=123456789
+# TELEGRAM_THREAD_ID=1
+```
+
 Открой:
 - http://SERVER:8000/ - форма
 - http://SERVER:8000/api/health - health
