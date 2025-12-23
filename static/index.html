@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Заявка на трансфер</title>
+
+  <!-- Leaflet (OSM) без ключей -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b0f14; --muted:#94a3b8; --text:#e5e7eb;
+      --line:rgba(148,163,184,.18); --accent:#22c55e; --danger:#ef4444;
+      --shadow: 0 10px 30px rgba(0,0,0,.35); --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(1200px 600px at 50% -10%, rgba(34,197,94,.18), transparent 50%),
+        radial-gradient(800px 500px at 110% 10%, rgba(59,130,246,.14), transparent 50%),
+        var(--bg);
+      color:var(--text); min-height:100svh; padding:16px;
+      display:flex; justify-content:center; align-items:flex-start;
+    }
+    .wrap{ width:min(720px, 100%); padding:12px; }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--line); border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow:hidden;
+    }
+    header{ padding:18px 18px 12px; border-bottom:1px solid var(--line); }
+    h1{ margin:0 0 6px; font-size:18px; }
+    .sub{ margin:0; font-size:13px; color:var(--muted); line-height:1.35; }
+
+    form{ padding:14px; }
+    .grid{ display:grid; gap:12px; }
+    @media (min-width:560px){ .grid{ grid-template-columns:1fr 1fr; } .span2{ grid-column:1/-1; } }
+
+    label{ display:block; font-size:12px; color:var(--muted); margin:0 0 6px; }
+    .req{ color: rgba(239,68,68,.95); margin-left:4px; }
+    .field{
+      background: rgba(255,255,255,.03); border:1px solid var(--line);
+      border-radius:14px; padding:12px; display:flex; gap:10px; align-items:center;
+    }
+    .field:focus-within{ border-color: rgba(34,197,94,.5); box-shadow: 0 0 0 3px rgba(34,197,94,.12); }
+    input, select{
+      width:100%; background:transparent; border:0; outline:none;
+      color:var(--text); font-size:16px; line-height:1.2;
+    }
+    input::placeholder{ color: rgba(148,163,184,.55); }
+    .hint{ margin:6px 2px 0; font-size:12px; color: rgba(148,163,184,.8); }
+
+    .row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+    .btn{
+      border:0; border-radius:14px; padding:12px 14px; font-size:15px;
+      cursor:pointer; user-select:none; -webkit-tap-highlight-color: transparent;
+      transition: transform .05s ease, filter .15s ease;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn-primary{
+      background: linear-gradient(180deg, rgba(34,197,94,1), rgba(16,185,129,1));
+      color:#04130a; font-weight:700; flex:1; min-width:180px;
+    }
+    .btn-ghost{
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      border:1px solid var(--line);
+      min-width: 120px;
+    }
+
+    .msg{
+      margin-top:12px; padding:12px; border-radius:14px;
+      border:1px solid var(--line); background: rgba(255,255,255,.03);
+      font-size:13px; line-height:1.4; display:none; white-space:pre-wrap;
+    }
+    .msg.ok{ border-color: rgba(34,197,94,.45); }
+    .msg.err{ border-color: rgba(239,68,68,.45); }
+
+    #map{
+      height: 300px;
+      border:1px solid var(--line);
+      border-radius:14px;
+      margin-top:10px;
+      overflow:hidden;
+    }
+    .footer{
+      padding:10px 14px 14px; border-top:1px solid var(--line);
+      color: rgba(148,163,184,.75); font-size:12px;
+      display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+    .pill{ padding:6px 10px; border-radius:999px; border:1px solid var(--line); background: rgba(255,255,255,.03); }
+    a{ color: rgba(34,197,94,.9); text-decoration:none; }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="card">
+      <header>
+        <h1>Заявка на трансфер</h1>
+        <p class="sub">Поставь точку на карте или найди адрес — и отправь заявку.</p>
+      </header>
+
+      <form id="f" novalidate>
+        <div class="grid">
+          <div>
+            <label for="phone">Телефон<span class="req">*</span></label>
+            <div class="field">
+              <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel"
+                     placeholder="+7 999 123-45-67" required />
+            </div>
+            <div class="hint">Можно с пробелами — сервер нормализует.</div>
+          </div>
+
+          <div>
+            <label for="tg">TG (ник)</label>
+            <div class="field">
+              <input id="tg" name="tg" type="text" autocomplete="off" placeholder="@username" />
+            </div>
+            <div class="hint">Необязательно.</div>
+          </div>
+
+          <div>
+            <label for="day">Дата<span class="req">*</span></label>
+            <div class="field">
+              <select id="day" name="day" required>
+                <option value="" disabled selected>Выбери: 30 или 31</option>
+                <option value="30">30</option>
+                <option value="31">31</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label for="time">Самое раннее время отправления<span class="req">*</span></label>
+            <div class="field">
+              <input id="time" name="earliest_time" type="time" required />
+            </div>
+          </div>
+
+          <div class="span2">
+            <label for="addr">Желаемая точка старта (адрес)<span class="req">*</span></label>
+
+            <div class="field" style="gap:8px;">
+              <input id="addr" type="text" autocomplete="off"
+                     placeholder="Введи адрес и нажми Найти (например: Москва, Таганская 1)" required />
+              <button type="button" class="btn btn-ghost" id="searchBtn" style="min-width:auto;">Найти</button>
+            </div>
+
+            <div class="hint">Или тапни по карте. Маркер можно перетаскивать.</div>
+
+            <div id="map"></div>
+
+            <input type="hidden" id="lat" />
+            <input type="hidden" id="lon" />
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn btn-primary" type="submit">Отправить</button>
+        </div>
+
+        <div id="msg" class="msg" aria-live="polite"></div>
+      </form>
+
+      <div class="footer">
+        <span class="pill">POST: <b>/api/ride-request</b></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("f");
+    const msg = document.getElementById("msg");
+
+    function show(text, ok){
+      msg.textContent = text;
+      msg.className = "msg " + (ok ? "ok" : "err");
+      msg.style.display = "block";
+    }
+
+    // --- MAP ---
+    let map, marker;
+
+    function setMarker(lat, lon){
+      document.getElementById("lat").value = String(lat);
+      document.getElementById("lon").value = String(lon);
+
+      if(!marker){
+        marker = L.marker([lat, lon], { draggable: true }).addTo(map);
+        marker.on("dragend", () => {
+          const p = marker.getLatLng();
+          document.getElementById("lat").value = String(p.lat);
+          document.getElementById("lon").value = String(p.lng);
+        });
+      } else {
+        marker.setLatLng([lat, lon]);
+      }
+      map.setView([lat, lon], Math.max(map.getZoom(), 14));
+    }
+
+    async function geocode(q){
+      // Nominatim: не спамить, 1 запрос на клик — ок
+      const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + encodeURIComponent(q);
+      const r = await fetch(url, { headers: { "Accept":"application/json" } });
+      if(!r.ok) throw new Error("Геокодер недоступен");
+      const data = await r.json();
+      if(!data.length) throw new Error("Адрес не найден");
+      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+    }
+
+    function initMap(){
+      map = L.map("map", { zoomControl: true });
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "© OpenStreetMap"
+      }).addTo(map);
+
+      // дефолт: Москва (можешь поменять)
+      map.setView([55.7558, 37.6173], 11);
+
+      map.on("click", (e) => setMarker(e.latlng.lat, e.latlng.lng));
+
+      if (navigator.geolocation){
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const lat = pos.coords.latitude, lon = pos.coords.longitude;
+            map.setView([lat, lon], 12);
+            setMarker(lat, lon);
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 4000 }
+        );
+      }
+    }
+
+    window.addEventListener("load", () => {
+      const t = setInterval(() => {
+        if(window.L){
+          clearInterval(t);
+          initMap();
+        }
+      }, 50);
+    });
+
+    document.getElementById("searchBtn").addEventListener("click", async () => {
+      msg.style.display = "none";
+      const addr = document.getElementById("addr").value.trim();
+      if(!addr) return show("Введи адрес для поиска.", false);
+
+      try{
+        const p = await geocode(addr);
+        setMarker(p.lat, p.lon);
+        show("Ок. Точка отмечена на карте.", true);
+      }catch(e){
+        show("Не получилось найти адрес.\n" + (e?.message || e), false);
+      }
+    });
+
+    function buildPayload(){
+      const lat = parseFloat(document.getElementById("lat").value);
+      const lon = parseFloat(document.getElementById("lon").value);
+      const address = document.getElementById("addr").value.trim();
+
+      return {
+        phone: document.getElementById("phone").value.trim(),
+        tg: document.getElementById("tg").value.trim(),
+        day: document.getElementById("day").value,
+        earliest_time: document.getElementById("time").value,
+        start_point: { address, lat, lon }
+      };
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msg.style.display = "none";
+
+      const p = buildPayload();
+
+      if(!p.phone) return show("Заполни телефон.", false);
+      if(!p.day) return show("Выбери дату: 30 или 31.", false);
+      if(!p.earliest_time) return show("Выбери время.", false);
+      if(!p.start_point.address) return show("Введи адрес точки старта.", false);
+      if(!Number.isFinite(p.start_point.lat) || !Number.isFinite(p.start_point.lon)){
+        return show('Поставь точку на карте (маркер) или нажми "Найти".', false);
+      }
+
+      try{
+        const r = await fetch("/api/ride-request", {
+          method: "POST",
+          headers: { "Content-Type":"application/json" },
+          body: JSON.stringify(p)
+        });
+        if(!r.ok){
+          const t = await r.text().catch(()=> "");
+          throw new Error("HTTP " + r.status + (t ? (": " + t) : ""));
+        }
+        const data = await r.json().catch(() => null);
+        const id = data && typeof data === "object" ? data.id : null;
+        window.location.href = id ? ("/ok.html?id=" + encodeURIComponent(id)) : "/ok.html";
+      }catch(err){
+        show("Не удалось отправить на сервер.\n" + (err?.message || err), false);
+      }
+    });
+  </script>
+</body>
+</html>
