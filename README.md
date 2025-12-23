@@ -107,6 +107,40 @@ python run.py
 
 Для локальной разработки удобно сделать сертификат через `mkcert` (или любой другой способ). Для продакшна обычно ставят TLS на Nginx/Caddy и проксируют на Uvicorn по HTTP.
 
+### systemd unit (пример)
+Если сертификат уже на Apache, Uvicorn можно поднимать как backend без TLS.
+
+Файл `ride-form.service` (готов в репозитории):
+```ini
+[Unit]
+Description=Ride Form (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/killka/ride-form/ride-form
+ExecStart=/home/killka/ride-form/ride-form/.venv/bin/python /home/killka/ride-form/ride-form/run.py
+Restart=on-failure
+RestartSec=5
+User=www-data
+Group=www-data
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+```
+Установка:
+```bash
+sudo cp ride-form.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now ride-form.service
+```
+Состояние/логи:
+```bash
+systemctl status ride-form.service
+journalctl -u ride-form.service -f
+```
+
 ## Telegram уведомления
 После каждой заявки сервер может отправлять сообщение в Telegram чат/группу.
 

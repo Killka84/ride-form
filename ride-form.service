@@ -1,0 +1,16 @@
+[Unit]
+Description=Ride Form (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/killka/ride-form/ride-form
+ExecStart=/home/killka/ride-form/ride-form/.venv/bin/python /home/killka/ride-form/ride-form/run.py
+Restart=on-failure
+RestartSec=5
+User=www-data
+Group=www-data
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
