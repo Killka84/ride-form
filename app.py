@@ -117,7 +117,7 @@ class RideRequestIn(BaseModel):
     tg: Optional[str] = Field(default="", max_length=64)
     day: str = Field(..., pattern="^(30|31)$")
     earliest_time: str = Field(..., pattern=r"^\d{2}:\d{2}$")
-    people: int = Field(..., ge=1, le=10)
+    people: int = Field(default=1, ge=1, le=10)
     start_point: StartPoint
 
     @field_validator("phone")
@@ -203,7 +203,12 @@ async def delete_request(request_id: str, request: Request):
 @app.get("/api/count")
 async def count():
     total = await col.count_documents({})
-    people_sum = await col.aggregate([{"$group": {"_id": None, "people": {"$sum": "$people"}}}]).to_list(length=1)
+    people_sum = await col.aggregate(
+        [
+            {"$project": {"people": {"$ifNull": ["$people", 1]}}},
+            {"$group": {"_id": None, "people": {"$sum": "$people"}}},
+        ]
+    ).to_list(length=1)
     total_people = people_sum[0]["people"] if people_sum else 0
     return {"ok": True, "count": total, "people": total_people}
 

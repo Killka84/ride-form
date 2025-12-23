@@ -34,6 +34,7 @@
     header{ padding:18px 18px 12px; border-bottom:1px solid var(--line); }
     h1{ margin:0 0 6px; font-size:18px; }
     .sub{ margin:0; font-size:13px; color:var(--muted); line-height:1.35; }
+    .stats{ margin-top:4px; font-size:13px; color:rgba(34,197,94,.9); }
 
     form{ padding:14px; }
     .grid{ display:grid; gap:12px; }
@@ -101,7 +102,8 @@
     <div class="card">
       <header>
         <h1>Заявка на трансфер</h1>
-        <p class="sub">Поставь точку на карте или найди адрес — и отправь заявку.</p>
+        <p class="sub">Поставь точку на карте или найди адрес - и отправь заявку.</p>
+        <p class="stats" id="stats" aria-live="polite">Людей едет: …</p>
       </header>
 
       <form id="f" novalidate>
@@ -169,7 +171,6 @@
 
         <div class="row">
           <button class="btn btn-primary" type="submit">Отправить</button>
-          <button class="btn btn-ghost" type="button" id="countBtn">Уже записались?</button>
         </div>
 
         <div id="msg" class="msg" aria-live="polite"></div>
@@ -275,12 +276,15 @@
       const lon = parseFloat(document.getElementById("lon").value);
       const address = document.getElementById("addr").value.trim();
 
+      const peopleVal = parseInt(document.getElementById("people").value, 10);
+      const people = Number.isInteger(peopleVal) && peopleVal >= 1 && peopleVal <= 10 ? peopleVal : 1;
+
       return {
         phone: document.getElementById("phone").value.trim(),
         tg: document.getElementById("tg").value.trim(),
         day: document.getElementById("day").value,
         earliest_time: document.getElementById("time").value,
-        people: parseInt(document.getElementById("people").value, 10),
+        people,
         start_point: { address, lat, lon }
       };
     }
@@ -318,21 +322,22 @@
       }
     });
 
-    document.getElementById("countBtn").addEventListener("click", async () => {
-      msg.style.display = "none";
+    async function refreshStats(){
+      const statsEl = document.getElementById("stats");
+      if(!statsEl) return;
       try{
         const r = await fetch("/api/count");
         if(!r.ok) throw new Error("HTTP " + r.status);
         const data = await r.json();
         if(!data?.ok) throw new Error("Ошибка API");
-        const total = data.count ?? 0;
         const people = data.people ?? 0;
-        show(`Уже записались: ${total} заявок, всего людей: ${people}`, true);
+        statsEl.textContent = `Людей едет: ${people}`;
       }catch(err){
-        show("Не удалось получить статистику.\n" + (err?.message || err), false);
+        statsEl.textContent = "Не удалось получить статистику.";
       }
-    });
+    }
 
+    refreshStats();
   </script>
 </body>
 </html>
