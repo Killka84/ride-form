@@ -181,6 +181,12 @@ async def health():
     return {"ok": True}
 
 
+@app.get("/api/count")
+async def count():
+    total = await col.count_documents({})
+    return {"ok": True, "count": total}
+
+
 # --- Static (форма) ---
 # Открытие "/" отдаёт static/index.html
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
