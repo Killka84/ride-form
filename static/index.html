@@ -109,6 +109,13 @@
       <form id="f" novalidate>
         <div class="grid">
           <div>
+            <label for="name">Имя<span class="req">*</span></label>
+            <div class="field">
+              <input id="name" name="name" type="text" autocomplete="name" placeholder="Имя" required />
+            </div>
+          </div>
+
+          <div>
             <label for="phone">Телефон<span class="req">*</span></label>
             <div class="field">
               <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel"
@@ -280,6 +287,7 @@
       const people = Number.isInteger(peopleVal) && peopleVal >= 1 && peopleVal <= 10 ? peopleVal : 1;
 
       return {
+        name: document.getElementById("name").value.trim(),
         phone: document.getElementById("phone").value.trim(),
         tg: document.getElementById("tg").value.trim(),
         day: document.getElementById("day").value,
@@ -295,6 +303,7 @@
 
       const p = buildPayload();
 
+      if(!p.name) return show("Заполни имя.", false);
       if(!p.phone) return show("Заполни телефон.", false);
       if(!p.day) return show("Выбери дату: 30 или 31.", false);
       if(!p.earliest_time) return show("Выбери время.", false);

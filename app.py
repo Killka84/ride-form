@@ -113,6 +113,7 @@ class StartPoint(BaseModel):
 
 
 class RideRequestIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
     phone: str = Field(..., min_length=5, max_length=32)
     tg: Optional[str] = Field(default="", max_length=64)
     day: str = Field(..., pattern="^(30|31)$")
