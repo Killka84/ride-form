@@ -7,6 +7,7 @@ import urllib.request
 from datetime import datetime, timezone
 from typing import Optional
 
+from bson import ObjectId
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -25,6 +26,7 @@ MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "requests")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
 TELEGRAM_THREAD_ID = os.getenv("TELEGRAM_THREAD_ID", "").strip()
+BOT_DELETE_TOKEN = os.getenv("BOT_DELETE_TOKEN", "").strip()
 
 app = FastAPI(title="Ride Form API")
 
@@ -179,6 +181,22 @@ async def create_request(payload: RideRequestIn, background_tasks: BackgroundTas
 @app.get("/api/health")
 async def health():
     return {"ok": True}
+
+
+@app.delete("/api/ride-request/{request_id}")
+async def delete_request(request_id: str, request: Request):
+    token = request.headers.get("X-Delete-Token", "")
+    if not BOT_DELETE_TOKEN or token != BOT_DELETE_TOKEN:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    if not ObjectId.is_valid(request_id):
+        raise HTTPException(status_code=400, detail="Invalid id")
+
+    res = await col.delete_one({"_id": ObjectId(request_id)})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    return {"ok": True, "id": request_id}
 
 
 @app.get("/api/count")

@@ -159,11 +159,33 @@ $token = "123456:ABC"
 TELEGRAM_BOT_TOKEN=123456:ABC
 TELEGRAM_CHAT_ID=123456789
 # TELEGRAM_THREAD_ID=1
+# BOT_DELETE_TOKEN=super-secret
+# BOT_ALLOWED_IDS=123456,654321
 ```
 
 Открой:
 - http://SERVER:8000/ - форма
 - http://SERVER:8000/api/health - health
+
+### Удаление через бота
+Для удаления заявки бот может дергать:
+```
+DELETE /api/ride-request/{id}
+Header: X-Delete-Token: <BOT_DELETE_TOKEN>
+```
+`id` — тот же, что возвращается в ответе на создание заявки. `BOT_DELETE_TOKEN` должен совпадать с переменной в `.env`.
+
+### Telegram-бот (polling)
+Запуск:
+```bash
+python bot.py
+```
+Что умеет:
+- /count или кнопка «Сколько участников?» — количество заявок.
+- /last или «Последние 5» — последние заявки (id, телефон, tg, дата/время, адрес).
+- /delete <id> — удалить заявку по id.
+
+Ограничение доступа по user_id можно указать в `BOT_ALLOWED_IDS` (через запятую). Если пусто — доступ открыт.
 
 ## Что сохраняется в Mongo
 Коллекция: `requests` (по умолчанию)

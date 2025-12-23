@@ -73,11 +73,6 @@
       border:1px solid var(--line);
       min-width: 160px;
     }
-    .btn-info{
-      background: rgba(59,130,246,.12);
-      border-color: rgba(59,130,246,.35);
-      color: #cfe1ff;
-    }
     a{ color: rgba(34,197,94,.9); }
   </style>
 </head>
@@ -102,7 +97,6 @@
         <div class="row">
           <a class="btn btn-primary" href="/">Отправить ещё</a>
           <a class="btn btn-telegram" href="https://t.me/MosBitAA_bot" target="_blank" rel="noopener">Перейти в бота</a>
-          <button class="btn btn-ghost btn-info" type="button" id="countBtn">Сколько участников?</button>
         </div>
       </div>
     </div>
@@ -110,23 +104,10 @@
 
   <script>
     const meta = document.getElementById("meta");
-    const countBtn = document.getElementById("countBtn");
     const id = new URLSearchParams(window.location.search).get("id");
     if(id){
       meta.textContent = "Номер заявки: " + id + "\nМожно закрывать страницу или отправить ещё одну заявку.";
     }
-
-    countBtn.addEventListener("click", async () => {
-      try{
-        const r = await fetch("/api/count");
-        if(!r.ok) throw new Error("HTTP " + r.status);
-        const data = await r.json();
-        if(!data?.ok) throw new Error("Ошибка API");
-        meta.textContent = "Участников: " + data.count;
-      }catch(err){
-        meta.textContent = "Не удалось получить количество участников. " + (err?.message || err);
-      }
-    });
   </script>
 </body>
 </html>
