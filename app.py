@@ -206,7 +206,22 @@ async def count():
     total = await col.count_documents({})
     people_sum = await col.aggregate(
         [
-            {"$project": {"people": {"$ifNull": ["$people", 1]}}},
+            {
+                "$project": {
+                    "people": {
+                        "$cond": [
+                            {
+                                "$and": [
+                                    {"$gt": [{"$ifNull": ["$people", 1]}, 0]},
+                                    {"$isNumber": {"$ifNull": ["$people", 1]}},
+                                ]
+                            },
+                            {"$ifNull": ["$people", 1]},
+                            1,
+                        ]
+                    }
+                }
+            },
             {"$group": {"_id": None, "people": {"$sum": "$people"}}},
         ]
     ).to_list(length=1)
