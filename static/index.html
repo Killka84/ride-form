@@ -169,6 +169,7 @@
 
         <div class="row">
           <button class="btn btn-primary" type="submit">Отправить</button>
+          <button class="btn btn-ghost" type="button" id="countBtn">Уже записались?</button>
         </div>
 
         <div id="msg" class="msg" aria-live="polite"></div>
@@ -314,6 +315,21 @@
         window.location.href = id ? ("/ok.html?id=" + encodeURIComponent(id)) : "/ok.html";
       }catch(err){
         show("Не удалось отправить на сервер.\n" + (err?.message || err), false);
+      }
+    });
+
+    document.getElementById("countBtn").addEventListener("click", async () => {
+      msg.style.display = "none";
+      try{
+        const r = await fetch("/api/count");
+        if(!r.ok) throw new Error("HTTP " + r.status);
+        const data = await r.json();
+        if(!data?.ok) throw new Error("Ошибка API");
+        const total = data.count ?? 0;
+        const people = data.people ?? 0;
+        show(`Уже записались: ${total} заявок, всего людей: ${people}`, true);
+      }catch(err){
+        show("Не удалось получить статистику.\n" + (err?.message || err), false);
       }
     });
 

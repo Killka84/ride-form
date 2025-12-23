@@ -203,7 +203,9 @@ async def delete_request(request_id: str, request: Request):
 @app.get("/api/count")
 async def count():
     total = await col.count_documents({})
-    return {"ok": True, "count": total}
+    people_sum = await col.aggregate([{"$group": {"_id": None, "people": {"$sum": "$people"}}}]).to_list(length=1)
+    total_people = people_sum[0]["people"] if people_sum else 0
+    return {"ok": True, "count": total, "people": total_people}
 
 
 # --- Static (форма) ---
